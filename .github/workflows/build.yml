@@ -21,27 +21,6 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Get release UploadUrl
-        id: getReleaseUploadUrl
-        uses: actions/github-script@v3.1.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            try {
-              const releaseVersion = '${{ github.event.inputs.FRIDA_VERSION }}'
-              const releaseResponse = await github.repos.getReleaseByTag({
-                owner: '${{ secrets.GIT_OWNER }}',
-                repo: '${{ secrets.GIT_REPO }}',
-                tag: releaseVersion
-              })
-              const {
-                data: { upload_url: uploadUrl }
-              } = releaseResponse;
-              core.setOutput('upload_url', uploadUrl);
-            } catch (e) {
-              core.setFailed(e.message);
-            }
-
       - uses: actions/checkout@v3
 
       - uses: actions/setup-node@v3
@@ -96,193 +75,69 @@ jobs:
           python3 ./releng/devkit.py frida-gumjs android-arm64 devkit/frida-gumjs-arm64
           python3 ./releng/devkit.py frida-gumjs android-x86 devkit/frida-gumjs-x86
           python3 ./releng/devkit.py frida-gumjs android-x86_64 devkit/frida-gumjs-x86_64
-          ls ./devkit
-          ls ./devkit/frida-gum-arm
-          ls ./devkit/frida-gum-arm64
-          ls ./devkit/frida-gum-x86
-          ls ./devkit/frida-gum-x86_64
-          ls ./devkit/frida-gumjs-arm
-          ls ./devkit/frida-gumjs-arm64
-          ls ./devkit/frida-gumjs-x86
-          ls ./devkit/frida-gumjs-x86_64
 
-      - name: zip
+      - name: Create organized directory structure
         run: |
-          cd ${{ github.workspace }}/frida/build/frida-android-arm/bin && zip frida-server.zip *
-          cd ${{ github.workspace }}/frida/build/frida-android-arm64/bin && zip frida-server.zip *
-          cd ${{ github.workspace }}/frida/build/frida-android-x86/bin && zip frida-server.zip *
-          cd ${{ github.workspace }}/frida/build/frida-android-x86_64/bin && zip frida-server.zip *
+          mkdir -p frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-server
+          mkdir -p frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-gadget
+          mkdir -p frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gum
+          mkdir -p frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gumjs
           
-          cd ${{ github.workspace }}/frida/build/frida-android-arm/lib/frida/32 && zip frida-gadget.zip *
-          cd ${{ github.workspace }}/frida/build/frida-android-arm64/lib/frida/64 && zip frida-gadget.zip *
-          cd ${{ github.workspace }}/frida/build/frida-android-x86/lib/frida/32 && zip frida-gadget.zip *
-          cd ${{ github.workspace }}/frida/build/frida-android-x86_64/lib/frida/64 && zip frida-gadget.zip *
+          # Copy frida-server binaries
+          cp ${{ github.workspace }}/frida/build/frida-android-arm/bin/frida-server frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-server/android-arm/
+          cp ${{ github.workspace }}/frida/build/frida-android-arm64/bin/frida-server frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-server/android-arm64/
+          cp ${{ github.workspace }}/frida/build/frida-android-x86/bin/frida-server frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-server/android-x86/
+          cp ${{ github.workspace }}/frida/build/frida-android-x86_64/bin/frida-server frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-server/android-x86_64/
           
-          cd ${{ github.workspace }}/frida/devkit/frida-gum-arm && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gum-arm64 && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gum-x86 && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gum-x86_64 && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gumjs-arm && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gumjs-arm64 && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gumjs-x86 && zip frida-devkit.zip *
-          cd ${{ github.workspace }}/frida/devkit/frida-gumjs-x86_64 && zip frida-devkit.zip *
+          # Copy frida-gadget binaries
+          cp ${{ github.workspace }}/frida/build/frida-android-arm/lib/frida/32/frida-gadget.so frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-gadget/android-arm/
+          cp ${{ github.workspace }}/frida/build/frida-android-arm64/lib/frida/64/frida-gadget.so frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-gadget/android-arm64/
+          cp ${{ github.workspace }}/frida/build/frida-android-x86/lib/frida/32/frida-gadget.so frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-gadget/android-x86/
+          cp ${{ github.workspace }}/frida/build/frida-android-x86_64/lib/frida/64/frida-gadget.so frida-build-${{ github.event.inputs.FRIDA_VERSION }}/frida-gadget/android-x86_64/
+          
+          # Copy devkit files
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gum-arm/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gum/android-arm/
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gum-arm64/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gum/android-arm64/
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gum-x86/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gum/android-x86/
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gum-x86_64/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gum/android-x86_64/
+          
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gumjs-arm/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gumjs/android-arm/
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gumjs-arm64/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gumjs/android-arm64/
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gumjs-x86/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gumjs/android-x86/
+          cp -r ${{ github.workspace }}/frida/devkit/frida-gumjs-x86_64/* frida-build-${{ github.event.inputs.FRIDA_VERSION }}/devkit/frida-gumjs/android-x86_64/
+          
+          # Create README file
+          cat > frida-build-${{ github.event.inputs.FRIDA_VERSION }}/README.md << EOF
+          # Frida ${{ github.event.inputs.FRIDA_VERSION }} - Android Build
+          
+          This archive contains Frida binaries built for Android architectures.
+          
+          ## Directory Structure
+          - `frida-server/` - Frida server binaries for each architecture
+          - `frida-gadget/` - Frida gadget binaries for each architecture  
+          - `devkit/frida-gum/` - Frida Gum devkit files
+          - `devkit/frida-gumjs/` - Frida GumJS devkit files
+          
+          ## Architectures
+          - android-arm (32-bit ARM)
+          - android-arm64 (64-bit ARM)
+          - android-x86 (32-bit x86)
+          - android-x86_64 (64-bit x86)
+          
+          Built on: $(date)
+          Frida Version: ${{ github.event.inputs.FRIDA_VERSION }}
+          EOF
 
-      - name: Upload android arm frida-server
+      - name: Create final archive
+        run: |
+          zip -r frida-android-${{ github.event.inputs.FRIDA_VERSION }}-complete.zip frida-build-${{ github.event.inputs.FRIDA_VERSION }}/
+
+      - name: Upload complete archive to release
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-server-${{ github.event.inputs.FRIDA_VERSION }}-android-arm.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-arm/bin/frida-server.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm64 frida-server
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-server-${{ github.event.inputs.FRIDA_VERSION }}-android-arm64.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-arm64/bin/frida-server.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86 frida-server
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-server-${{ github.event.inputs.FRIDA_VERSION }}-android-x86.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-x86/bin/frida-server.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86_64 frida-server
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-server-${{ github.event.inputs.FRIDA_VERSION }}-android-x86_64.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-x86_64/bin/frida-server.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm frida-gadget
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gadget-${{ github.event.inputs.FRIDA_VERSION }}-android-arm.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-arm/lib/frida/32/frida-gadget.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm64 frida-gadget
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gadget-${{ github.event.inputs.FRIDA_VERSION }}-android-arm64.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-arm64/lib/frida/64/frida-gadget.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86 frida-gadget
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gadget-${{ github.event.inputs.FRIDA_VERSION }}-android-x86.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-x86/lib/frida/32/frida-gadget.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86_64 frida-gadget
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gadget-${{ github.event.inputs.FRIDA_VERSION }}-android-x86_64.zip'
-          asset_path: '${{ github.workspace }}/frida/build/frida-android-x86_64/lib/frida/64/frida-gadget.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm frida-gumjs-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gumjs-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-arm.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gumjs-arm/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm64 frida-gumjs-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gumjs-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-arm64.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gumjs-arm64/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86 frida-gumjs-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gumjs-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-x86.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gumjs-x86/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86_64 frida-gumjs-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gumjs-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-x86_64.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gumjs-x86_64/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm frida-gum-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gum-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-arm.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gum-arm/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android arm64 frida-gum-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gum-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-arm64.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gum-arm64/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86 frida-gum-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gum-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-x86.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gum-x86/frida-devkit.zip'
-          asset_content_type: application/octet-stream
-
-      - name: Upload android x86_64 frida-gum-devkit
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: '${{ steps.getReleaseUploadUrl.outputs.upload_url }}'
-          asset_name: 'frida-gum-devkit-${{ github.event.inputs.FRIDA_VERSION }}-android-x86_64.zip'
-          asset_path: '${{ github.workspace }}/frida/devkit/frida-gum-x86_64/frida-devkit.zip'
-          asset_content_type: application/octet-stream
+          upload_url: '${{ steps.create-release.outputs.upload_url }}'
+          asset_name: 'frida-android-${{ github.event.inputs.FRIDA_VERSION }}-complete.zip'
+          asset_path: '${{ github.workspace }}/frida-android-${{ github.event.inputs.FRIDA_VERSION }}-complete.zip'
+          asset_content_type: application/zip
